@@ -1,18 +1,26 @@
 package main
 
 import (
+	b64 "encoding/base64"
+
 	"github.com/birowo/base64"
 )
 
 func main() {
-	x := []byte("QWERTYUIOPASDFGHJKLZXCVB")
-	y := make([]byte, 32)
+	//
+	x := []byte("QWERTYUIOPASDFGHJKLZXCVBNM")
+	y := make([]byte, 36)
 	base64.Encode(y, x)
-	println("y:", string(y))
-	z := make([]byte, 24)
-	base64.Decode(z, y)
-	println("z:", string(z))
-	if string(x) != string(z) {
+	z := make([]byte, 27)
+	n, _ := base64.Decode(z, y)
+	println("x:", string(x), "y:", string(y), "z:", string(z[:n]))
+	if string(x) != string(z[:n]) {
+		println("FAIL")
+	}
+	b64.StdEncoding.Encode(y, x)
+	n, _ = b64.StdEncoding.Decode(z, y)
+	println("x:", string(x), "y:", string(y), "z:", string(z[:n]))
+	if string(x) != string(z[:n]) {
 		println("FAIL")
 	}
 }

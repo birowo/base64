@@ -11,32 +11,45 @@ func Ui4B4(b4 *[4]byte) *uint32 {
 func B4Ui4(v *uint32) *[4]byte {
 	return (*[4]byte)(unsafe.Pointer(v))
 }
+func Ui2B2(b2 *[2]byte) *uint16 {
+	return (*uint16)(unsafe.Pointer(b2))
+}
 
 const cs = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
 func Encode(dst, src []byte) {
 	srcLen := len(src)
-	if srcLen%3 != 0 {
-		return //belum mendukung padding
-	}
-	var b4 [4]byte
-	j := 0
-	for i := 0; (i+2) < srcLen && (j+3) < len(dst); i += 3 {
-		b4[1], b4[2], b4[3] = src[i+2], src[i+1], src[i]
-		ui4 := *Ui4B4(&b4)
-		dst[j] = cs[(ui4&0b11111100000000000000000000000000)>>26]
+	i, j := 0, 0
+	for (i+2) < srcLen && (j+3) < len(dst) {
+		ui4 := *Ui4B4(&[4]byte{0, src[i+2], src[i+1], src[i]})
+		i += 3
+		dst[j] = cs[ui4>>26]
 		dst[j+1] = cs[(ui4&0b00000011111100000000000000000000)>>20]
 		dst[j+2] = cs[(ui4&0b00000000000011111100000000000000)>>14]
 		dst[j+3] = cs[(ui4&0b00000000000000000011111100000000)>>8]
 		j += 4
 	}
+	switch srcLen - i {
+	case 2:
+		ui2 := *Ui2B2(&[2]byte{src[i+1], src[i]})
+		dst[j] = cs[ui2>>10]
+		dst[j+1] = cs[(ui2&0b1111110000)>>4]
+		dst[j+2] = cs[(ui2&0b1111)<<2]
+		dst[j+3] = '='
+	case 1:
+		dst[j] = cs[src[i]>>2]
+		dst[j+1] = cs[src[i]&0b11<<4]
+		dst[j+2] = '='
+		dst[j+3] = '='
+	}
+
 }
 
 var z = [256]uint32{
 	64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
 	64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
 	64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 62, 64, 64, 64, 63,
-	52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 64, 64, 64, 64, 64, 64,
+	52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 64, 64, 64, 0, 64, 64,
 	64, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
 	15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 64, 64, 64, 64, 64,
 	64, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
@@ -51,7 +64,7 @@ var z = [256]uint32{
 	64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
 }
 
-func Decode(dst, src []byte) error {
+func Decode(dst, src []byte) (j int, err error) {
 	/*
 			z := [256]uint32{
 				'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6, 'H': 7,
@@ -72,17 +85,25 @@ func Decode(dst, src []byte) error {
 		z, _ := json.Marshal(z)
 		println(string(z))
 	*/
-
-	j := 0
-	for i := 0; (i + 3) < len(src); i += 4 {
+	var b4 [4]byte
+	i := 0
+	for (i+3) < len(src) && (j+2) < len(dst) {
 		x0, x1, x2, x3 := z[src[i]], z[src[i+1]], z[src[i+2]], z[src[i+3]]
-		if x0|x1|x2|x3 > 63 {
-			return errors.New("invalid base-64")
+		if x0&x1&x2&x3 > 63 {
+			err = errors.New("invalid base-64")
+			return
 		}
+		i += 4
 		v := ((x0<<6|x1)<<6|x2)<<6 | x3
-		b4 := *B4Ui4(&v)
+		b4 = *B4Ui4(&v)
 		dst[j], dst[j+1], dst[j+2] = b4[2], b4[1], b4[0]
 		j += 3
 	}
-	return nil
+	if b4[0] == 0 {
+		j--
+	}
+	if b4[1] == 0 {
+		j--
+	}
+	return
 }
