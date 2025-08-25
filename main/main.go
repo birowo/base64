@@ -7,7 +7,6 @@ import (
 )
 
 func main() {
-	//
 	x := []byte("QWERTYUIOPASDFGHJKLZXCVBNM")
 	y := make([]byte, 36)
 	base64.Encode(y, x)

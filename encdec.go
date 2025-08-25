@@ -18,25 +18,25 @@ func Ui2B2(b2 *[2]byte) *uint16 {
 const cs = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
 func Encode(dst, src []byte) {
-	srcLen := len(src)
+	srcLen := len(src) - 2
 	i, j := 0, 0
-	for (i+2) < srcLen && (j+3) < len(dst) {
-		ui4 := *Ui4B4(&[4]byte{0, src[i+2], src[i+1], src[i]})
+	for i < srcLen {
+		ui4 := *Ui4B4(&[4]byte{src[i+2], src[i+1], src[i]})
 		i += 3
-		dst[j] = cs[ui4>>26]
-		dst[j+1] = cs[(ui4&0b00000011111100000000000000000000)>>20]
-		dst[j+2] = cs[(ui4&0b00000000000011111100000000000000)>>14]
-		dst[j+3] = cs[(ui4&0b00000000000000000011111100000000)>>8]
+		dst[j] = cs[ui4>>18]
+		dst[j+1] = cs[(ui4&0b000000111111000000000000)>>12]
+		dst[j+2] = cs[(ui4&0b000000000000111111000000)>>6]
+		dst[j+3] = cs[(ui4 & 0b000000000000000000111111)]
 		j += 4
 	}
 	switch srcLen - i {
-	case 2:
+	case 0:
 		ui2 := *Ui2B2(&[2]byte{src[i+1], src[i]})
 		dst[j] = cs[ui2>>10]
 		dst[j+1] = cs[(ui2&0b1111110000)>>4]
 		dst[j+2] = cs[(ui2&0b1111)<<2]
 		dst[j+3] = '='
-	case 1:
+	case -1:
 		dst[j] = cs[src[i]>>2]
 		dst[j+1] = cs[src[i]&0b11<<4]
 		dst[j+2] = '='
@@ -88,7 +88,7 @@ func Decode(dst, src []byte) (j int, err error) {
 	*/
 	var b4 [4]byte
 	i := 0
-	for (i+3) < len(src) && (j+2) < len(dst) {
+	for i < len(src) {
 		x0, x1, x2, x3 := z[src[i]], z[src[i+1]], z[src[i+2]], z[src[i+3]]
 		if x0&x1&x2&x3 > 63 {
 			err = errors.New("invalid base-64")
