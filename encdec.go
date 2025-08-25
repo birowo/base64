@@ -42,7 +42,6 @@ func Encode(dst, src []byte) {
 		dst[j+2] = '='
 		dst[j+3] = '='
 	}
-
 }
 
 var z = [256]uint32{
