@@ -8,12 +8,9 @@ import (
 
 const n = 65536
 
-var (
-	x = make([]byte, n)
-	y = make([]byte, b64.StdEncoding.EncodedLen(n))
-)
-
 func Benchmark_1(b *testing.B) {
+	x := make([]byte, n)
+	y := make([]byte, b64.StdEncoding.EncodedLen(n))
 	rand.Read(x)
 	for b.Loop() {
 		Encode(y, x)
@@ -21,6 +18,8 @@ func Benchmark_1(b *testing.B) {
 	}
 }
 func Benchmark_2(b *testing.B) {
+	x := make([]byte, n)
+	y := make([]byte, b64.StdEncoding.EncodedLen(n))
 	rand.Read(x)
 	for b.Loop() {
 		b64.StdEncoding.Encode(y, x)

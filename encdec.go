@@ -22,8 +22,9 @@ func Encode(dst, src []byte) {
 	switch srcLen - i {
 	case 0:
 		dst[j] = cs[src[i]>>2]
-		dst[j+1] = cs[(uint64(src[i])<<8|uint64(src[i+1]))<<54>>58]
-		dst[j+2] = cs[src[i+1]<<4>>2]
+		scrI1 := uint64(src[i+1])
+		dst[j+1] = cs[(uint64(src[i])<<8|scrI1)<<54>>58]
+		dst[j+2] = cs[scrI1<<60>>58]
 		dst[j+3] = '='
 	case -1:
 		dst[j] = cs[src[i]>>2]
@@ -75,7 +76,6 @@ func Decode(dst, src []byte) (j int, err error) {
 		println(string(z))
 	*/
 	i := 0
-	var v uint64
 	l := len(dst) - 3
 	for j < l {
 		x0, x1, x2, x3 := z[src[i]], z[src[i+1]], z[src[i+2]], z[src[i+3]]
@@ -84,7 +84,7 @@ func Decode(dst, src []byte) (j int, err error) {
 			return
 		}
 		i += 4
-		v = ((x0<<6|x1)<<6|x2)<<6 | x3
+		v := ((x0<<6|x1)<<6|x2)<<6 | x3
 		dst[j] = byte(v >> 16)
 		dst[j+1] = byte(v >> 8)
 		dst[j+2] = byte(v)
@@ -95,7 +95,7 @@ func Decode(dst, src []byte) (j int, err error) {
 		err = errors.New("invalid base-64")
 		return
 	}
-	v = ((x0<<6|x1)<<6|x2)<<6 | x3
+	v := ((x0<<6|x1)<<6|x2)<<6 | x3
 	dst[j] = byte(v >> 16)
 	switch j - l {
 	case 0:
