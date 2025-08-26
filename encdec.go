@@ -2,18 +2,7 @@ package base64
 
 import (
 	"errors"
-	"unsafe"
 )
-
-func Ui4B4(b4 *[4]byte) *uint32 {
-	return (*uint32)(unsafe.Pointer(b4))
-}
-func B4Ui4(v *uint32) *[4]byte {
-	return (*[4]byte)(unsafe.Pointer(v))
-}
-func Ui2B2(b2 *[2]byte) *uint16 {
-	return (*uint16)(unsafe.Pointer(b2))
-}
 
 const cs = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
@@ -21,30 +10,30 @@ func Encode(dst, src []byte) {
 	srcLen := len(src) - 2
 	i, j := 0, 0
 	for i < srcLen {
-		ui4 := *Ui4B4(&[4]byte{src[i+2], src[i+1], src[i]})
+		dst[j] = cs[src[i]>>2]
+		srcI1 := uint64(src[i+1]) << 8
+		dst[j+1] = cs[(uint64(src[i])<<16|srcI1)<<46>>58]
+		srcI2 := uint64(src[i+2])
+		dst[j+2] = cs[(srcI1|srcI2)<<52>>58]
+		dst[j+3] = cs[(srcI2 & 0b111111)]
 		i += 3
-		dst[j] = cs[ui4>>18]
-		dst[j+1] = cs[(ui4&0b000000111111000000000000)>>12]
-		dst[j+2] = cs[(ui4&0b000000000000111111000000)>>6]
-		dst[j+3] = cs[(ui4 & 0b000000000000000000111111)]
 		j += 4
 	}
 	switch srcLen - i {
 	case 0:
-		ui2 := *Ui2B2(&[2]byte{src[i+1], src[i]})
-		dst[j] = cs[ui2>>10]
-		dst[j+1] = cs[(ui2&0b1111110000)>>4]
-		dst[j+2] = cs[(ui2&0b1111)<<2]
+		dst[j] = cs[src[i]>>2]
+		dst[j+1] = cs[(uint64(src[i])<<8|uint64(src[i+1]))<<54>>58]
+		dst[j+2] = cs[src[i+1]<<4>>2]
 		dst[j+3] = '='
 	case -1:
 		dst[j] = cs[src[i]>>2]
-		dst[j+1] = cs[src[i]&0b11<<4]
+		dst[j+1] = cs[src[i]<<6>>2]
 		dst[j+2] = '='
 		dst[j+3] = '='
 	}
 }
 
-var z = [256]uint32{
+var z = [256]uint64{
 	64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
 	64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
 	64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 62, 64, 64, 64, 63,
@@ -65,7 +54,7 @@ var z = [256]uint32{
 
 func Decode(dst, src []byte) (j int, err error) {
 	/*
-		z := [256]uint32{
+		z := [256]uint64{
 			'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6, 'H': 7,
 			'I': 8, 'J': 9, 'K': 10, 'L': 11, 'M': 12, 'N': 13, 'O': 14, 'P': 15,
 			'Q': 16, 'R': 17, 'S': 18, 'T': 19, 'U': 20, 'V': 21, 'W': 22, 'X': 23,
@@ -85,25 +74,41 @@ func Decode(dst, src []byte) (j int, err error) {
 		z, _ := json.Marshal(z)
 		println(string(z))
 	*/
-	var b4 [4]byte
 	i := 0
-	for i < len(src) {
+	var v uint64
+	l := len(dst) - 3
+	for j < l {
 		x0, x1, x2, x3 := z[src[i]], z[src[i+1]], z[src[i+2]], z[src[i+3]]
 		if x0&x1&x2&x3 > 63 {
 			err = errors.New("invalid base-64")
 			return
 		}
 		i += 4
-		v := ((x0<<6|x1)<<6|x2)<<6 | x3
-		b4 = *B4Ui4(&v)
-		dst[j], dst[j+1], dst[j+2] = b4[2], b4[1], b4[0]
+		v = ((x0<<6|x1)<<6|x2)<<6 | x3
+		dst[j] = byte(v >> 16)
+		dst[j+1] = byte(v >> 8)
+		dst[j+2] = byte(v)
 		j += 3
 	}
-	if b4[0] == 0 {
-		j--
+	x0, x1, x2, x3 := z[src[i]], z[src[i+1]], z[src[i+2]], z[src[i+3]]
+	if x0&x1&x2&x3 > 63 {
+		err = errors.New("invalid base-64")
+		return
 	}
-	if b4[1] == 0 {
-		j--
+	v = ((x0<<6|x1)<<6|x2)<<6 | x3
+	dst[j] = byte(v >> 16)
+	switch j - l {
+	case 0:
+		dst[j+1] = byte(v >> 8)
+		dst[j+2] = byte(v)
+		j += 3
+	case 1:
+		dst[j+1] = byte(v >> 8)
+		j += 2
+	case 2:
+		j++
 	}
 	return
 }
+
+//10011100100110100000000
