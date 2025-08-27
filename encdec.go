@@ -7,28 +7,58 @@ import (
 const cs = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
 func Encode(dst, src []byte) {
-	srcLen := len(src) - 2
+	l := len(src) - 5
 	i, j := 0, 0
-	for i < srcLen {
-		dst[j] = cs[src[i]>>2]
-		srcI1 := uint64(src[i+1]) << 8
-		dst[j+1] = cs[(uint64(src[i])<<16|srcI1)<<46>>58]
-		srcI2 := uint64(src[i+2])
-		dst[j+2] = cs[(srcI1|srcI2)<<52>>58]
-		dst[j+3] = cs[(srcI2 & 0b111111)]
-		i += 3
-		j += 4
+	for i < l {
+		ui8 := uint64(src[i])<<40 | uint64(src[i+1])<<32 | uint64(src[i+2])<<24 | uint64(src[i+3])<<16 | uint64(src[i+4])<<8 | uint64(src[i+5])
+		dst[j] = cs[(ui8>>42)&0b111111]
+		dst[j+1] = cs[(ui8>>36)&0b111111]
+		dst[j+2] = cs[(ui8>>30)&0b111111]
+		dst[j+3] = cs[(ui8>>24)&0b111111]
+		dst[j+4] = cs[(ui8>>18)&0b111111]
+		dst[j+5] = cs[(ui8>>12)&0b111111]
+		dst[j+6] = cs[(ui8>>6)&0b111111]
+		dst[j+7] = cs[ui8&0b111111]
+		i += 6
+		j += 8
 	}
-	switch srcLen - i {
+	switch i - l {
 	case 0:
-		dst[j] = cs[src[i]>>2]
-		scrI1 := uint64(src[i+1])
-		dst[j+1] = cs[(uint64(src[i])<<8|scrI1)<<54>>58]
-		dst[j+2] = cs[scrI1<<60>>58]
+		ui8 := uint64(src[i])<<40 | uint64(src[i+1])<<32 | uint64(src[i+2])<<24 | uint64(src[i+3])<<16 | uint64(src[i+4])<<8
+		dst[j] = cs[(ui8>>42)&0b111111]
+		dst[j+1] = cs[(ui8>>36)&0b111111]
+		dst[j+2] = cs[(ui8>>30)&0b111111]
+		dst[j+3] = cs[(ui8>>24)&0b111111]
+		dst[j+4] = cs[(ui8>>18)&0b111111]
+		dst[j+5] = cs[(ui8>>12)&0b111111]
+		dst[j+6] = cs[(ui8>>6)&0b111111]
+		dst[j+7] = '='
+	case 1:
+		ui8 := uint64(src[i])<<40 | uint64(src[i+1])<<32 | uint64(src[i+2])<<24 | uint64(src[i+3])<<16
+		dst[j] = cs[(ui8>>42)&0b111111]
+		dst[j+1] = cs[(ui8>>36)&0b111111]
+		dst[j+2] = cs[(ui8>>30)&0b111111]
+		dst[j+3] = cs[(ui8>>24)&0b111111]
+		dst[j+4] = cs[(ui8>>18)&0b111111]
+		dst[j+5] = cs[(ui8>>12)&0b111111]
+		dst[j+6] = '='
+		dst[j+7] = '='
+	case 2:
+		ui8 := uint64(src[i])<<40 | uint64(src[i+1])<<32 | uint64(src[i+2])<<24
+		dst[j] = cs[(ui8>>42)&0b111111]
+		dst[j+1] = cs[(ui8>>36)&0b111111]
+		dst[j+2] = cs[(ui8>>30)&0b111111]
+		dst[j+3] = cs[(ui8>>24)&0b111111]
+	case 3:
+		ui8 := uint64(src[i])<<40 | uint64(src[i+1])<<32
+		dst[j] = cs[(ui8>>42)&0b111111]
+		dst[j+1] = cs[(ui8>>36)&0b111111]
+		dst[j+2] = cs[(ui8>>30)&0b111111]
 		dst[j+3] = '='
-	case -1:
-		dst[j] = cs[src[i]>>2]
-		dst[j+1] = cs[src[i]<<6>>2]
+	case 4:
+		ui8 := uint64(src[i]) << 40
+		dst[j] = cs[(ui8>>42)&0b111111]
+		dst[j+1] = cs[(ui8>>36)&0b111111]
 		dst[j+2] = '='
 		dst[j+3] = '='
 	}
