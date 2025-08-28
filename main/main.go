@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	x := []byte("QWERTYUIOPASDFGHJKLZXCVBNM")
+	x := []byte("QWERTYUIOPASDFGHJKLZXCVBNMqwertyui")
 	xLen := len(x)
 	y := make([]byte, b64.StdEncoding.EncodedLen(xLen))
 	base64.Encode(y, x)
@@ -23,4 +23,5 @@ func main() {
 	if string(x) != string(z[:n]) {
 		println("FAIL")
 	}
+	println("yLen:", len(y))
 }
